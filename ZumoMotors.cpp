@@ -7,6 +7,8 @@
 
 #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__) || defined (__AVR_ATmega32U4__)
   #define USE_20KHZ_PWM
+#elif defined(__AVR_ATmega4809__)
+  #define USE_FAST_PWM_4809
 #endif
 
 static boolean flipLeft = false;
@@ -37,6 +39,19 @@ void ZumoMotors::init2()
   TCCR1A = 0b10100000;
   TCCR1B = 0b00010001;
   ICR1 = 400;
+#elif defined(USE_FAST_PWM_4809)
+  // Timer A0 configuration
+  // prescaler: sys_clk / 1
+  // outputs enabled
+  // phase-correct PWM
+  // top of 400
+  TCA0.SINGLE.CTRLB = TCA_SINGLE_CMP0EN_bm /* enable compare channel 0 */
+                    | TCA_SINGLE_CMP1EN_bm /* enable compare channel 1 */
+                    | TCA_SINGLE_WGMODE_DSBOTTOM_gc; /* set dual-slope PWM mode (phase-correct PWM) */
+  TCA0.SINGLE.PERBUF=400; /* set top to 400 */
+  TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1_gc /* set clock source (sys_clk/1) */
+                    | TCA_SINGLE_ENABLE_bm; /* start timer */
+  
 #endif
 }
 
@@ -69,6 +84,8 @@ void ZumoMotors::setLeftSpeed(int speed)
     
 #ifdef USE_20KHZ_PWM
   OCR1B = speed;
+#elif defined(USE_FAST_PWM_4809)
+  TCA0.SINGLE.CMP1BUF = speed;
 #else
   analogWrite(PWM_L, speed * 51 / 80); // default to using analogWrite, mapping 400 to 255
 #endif 
@@ -96,6 +113,8 @@ void ZumoMotors::setRightSpeed(int speed)
     
 #ifdef USE_20KHZ_PWM
   OCR1A = speed;
+#elif defined(USE_FAST_PWM_4809)
+  TCA0.SINGLE.CMP0BUF = speed;
 #else
   analogWrite(PWM_R, speed * 51 / 80); // default to using analogWrite, mapping 400 to 255
 #endif
